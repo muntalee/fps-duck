@@ -5,7 +5,7 @@ EXE = game
 ifeq ($(OS),Windows_NT)
     RM = rmdir /S /Q
     EXE_EXT = .exe
-    RUN = $(BUILD_DIR)\$(EXE)$(EXE_EXT)
+    RUN = .\$(BUILD_DIR)\$(EXE)$(EXE_EXT)
 else
     RM = rm -rf
     EXE_EXT =
@@ -19,9 +19,10 @@ build:
 	cmake -S . -B $(BUILD_DIR) -G "Ninja" -DCMAKE_EXPORT_COMPILE_COMMANDS=on
 
 clean:
-	$(RM) $(BUILD_DIR)
+	$(RM) $(BUILD_DIR) .cache
 
 run: compile
 	$(RUN)
 
 all: run
+
