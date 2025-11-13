@@ -7,4 +7,5 @@ struct Mesh
     GLuint vbo = 0;
     GLuint ebo = 0;
     int indexCount = 0;
+    GLuint texture = 0;
 };

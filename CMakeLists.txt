@@ -9,6 +9,7 @@ file(GLOB_RECURSE SRC_FILES
 )
 add_executable(${OUT} ${SRC_FILES})
 
+file(COPY ${CMAKE_SOURCE_DIR}/data DESTINATION ${CMAKE_BINARY_DIR})
 
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
@@ -55,3 +56,4 @@ target_link_libraries(${OUT} PRIVATE
 )
 
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+

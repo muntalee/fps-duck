@@ -5,19 +5,24 @@
 static const char *vShader = R"(
 #version 330 core
 layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec2 aTex;
+out vec2 vTex;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
 void main() {
+    vTex = aTex;
     gl_Position = proj * view * model * vec4(aPos, 1.0);
 }
 )";
 
 static const char *fShader = R"(
 #version 330 core
+in vec2 vTex;
 out vec4 FragColor;
+uniform sampler2D tex0;
 void main() {
-    FragColor = vec4(0.2, 0.7, 1.0, 1.0);
+    FragColor = texture(tex0, vTex);
 }
 )";
 
@@ -63,6 +68,14 @@ void RenderSystem::Update(Registry &registry, float dt)
 
         shader->SetMat4("model", &transform->GetMatrix()[0][0]);
         glBindVertexArray(mesh->vao);
+        if (mesh->texture)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, mesh->texture);
+            GLint loc = glGetUniformLocation(shader->id, "tex0");
+            if (loc >= 0)
+                glUniform1i(loc, 0);
+        }
         glDrawElements(GL_TRIANGLES, mesh->indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
