@@ -12,6 +12,7 @@
 #include <imgui_internal.h>
 #include "ecs/LightSystem.hpp"
 #include "ecs/Light.hpp"
+#include "ecs/Model.hpp"
 
 struct Position
 {
@@ -243,6 +244,12 @@ int main()
     Entity cube = registry.CreateEntity();
     registry.AddComponent<Transform>(cube, {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}});
     registry.AddComponent<Mesh>(cube, CreateCube());
+
+    // load gun model from data/gun (OBJ + MTL + textures expected)
+    Entity gun = registry.CreateEntity();
+    Mesh gunMesh = Model::LoadFromOBJ("data/gun/gun.obj");
+    registry.AddComponent<Mesh>(gun, gunMesh);
+    registry.AddComponent<Transform>(gun, {{0.5f, -0.5f, 0.0f}, {0, 90.0f, 0}, {0.6f, 0.6f, 0.6f}});
 
     bool running = true;
     Uint64 prevTicks = SDL_GetTicks();
