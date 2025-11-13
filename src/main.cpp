@@ -10,6 +10,8 @@
 #include <glm/glm.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include "ecs/LightSystem.hpp"
+#include "ecs/Light.hpp"
 
 struct Position
 {
@@ -86,38 +88,38 @@ public:
 // sample cube with UVs (24 vertices, 36 indices)
 Mesh CreateCube()
 {
-    // positions (x,y,z) and texcoords (u,v) for each face (4 verts per face)
+    // positions (x,y,z), normals (x,y,z), texcoords (u,v) for each face (4 verts per face)
     float vertices[] = {
-        // front
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-        // back
-        -0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        // left
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-        // right
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        // top
-        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-        // bottom
-        -0.5f, -0.5f, 0.5f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f};
+        // front (+Z)
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        // back (-Z)
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        // left (-X)
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        // right (+X)
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        // top (+Y)
+        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        // bottom (-Y)
+        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f};
 
     unsigned int indices[] = {
         0, 1, 2, 2, 3, 0,
@@ -141,11 +143,14 @@ Mesh CreateCube()
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
-    // texcoord
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    // normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    // texcoord
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 
@@ -156,6 +161,71 @@ Mesh CreateCube()
     return mesh;
 }
 
+// small colored cube (no texture) - used to visualize the light source
+Mesh CreateColoredCube(float size = 0.2f)
+{
+    float s = size * 0.5f;
+    // same layout: pos, normal, uv (uv unused)
+    float vertices[] = {
+        // front
+        -s, -s, s, 0, 0, 1, 0, 0,
+        s, -s, s, 0, 0, 1, 1, 0,
+        s, s, s, 0, 0, 1, 1, 1,
+        -s, s, s, 0, 0, 1, 0, 1,
+        // back
+        -s, -s, -s, 0, 0, -1, 1, 0,
+        s, -s, -s, 0, 0, -1, 0, 0,
+        s, s, -s, 0, 0, -1, 0, 1,
+        -s, s, -s, 0, 0, -1, 1, 1,
+        // left
+        -s, -s, -s, -1, 0, 0, 0, 0,
+        -s, -s, s, -1, 0, 0, 1, 0,
+        -s, s, s, -1, 0, 0, 1, 1,
+        -s, s, -s, -1, 0, 0, 0, 1,
+        // right
+        s, -s, -s, 1, 0, 0, 1, 0,
+        s, -s, s, 1, 0, 0, 0, 0,
+        s, s, s, 1, 0, 0, 0, 1,
+        s, s, -s, 1, 0, 0, 1, 1,
+        // top
+        -s, s, s, 0, 1, 0, 0, 0,
+        s, s, s, 0, 1, 0, 1, 0,
+        s, s, -s, 0, 1, 0, 1, 1,
+        -s, s, -s, 0, 1, 0, 0, 1,
+        // bottom
+        -s, -s, s, 0, -1, 0, 0, 1,
+        s, -s, s, 0, -1, 0, 1, 1,
+        s, -s, -s, 0, -1, 0, 1, 0,
+        -s, -s, -s, 0, -1, 0, 0, 0};
+
+    unsigned int indices[] = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10,
+                              11, 8, 12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19,
+                              16, 20, 21, 22, 22, 23, 20};
+
+    Mesh mesh;
+    glGenVertexArrays(1, &mesh.vao);
+    glGenBuffers(1, &mesh.vbo);
+    glGenBuffers(1, &mesh.ebo);
+
+    glBindVertexArray(mesh.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
+
+    mesh.indexCount = static_cast<int>(sizeof(indices) / sizeof(unsigned int));
+    mesh.texture = 0;
+    return mesh;
+}
+
 int main()
 {
     Window window;
@@ -163,8 +233,8 @@ int main()
         return -1;
 
     Registry registry;
-    bool showUI = false;       // false = playing (camera captured), true = menu shown
-    bool inputCaptured = true; // when true, camera captures mouse & processes input
+    bool showUI = false;
+    bool inputCaptured = true;
 
     DemoSystem demo(&showUI);
     RenderSystem renderSystem;
@@ -179,8 +249,16 @@ int main()
 
     CameraSystem cameraSystem;
     cameraSystem.SetEnabled(&inputCaptured);
+
     // start with mouse captured for FPS look
     SDL_SetWindowRelativeMouseMode(window.window, inputCaptured);
+
+    // light system
+    LightSystem lightSystem(&showUI);
+    Entity lightEntity = registry.CreateEntity();
+    registry.AddComponent<Transform>(lightEntity, {{2.0f, 2.0f, 2.0f}, {0, 0, 0}, {0.6f, 0.6f, 0.6f}});
+    registry.AddComponent<Light>(lightEntity, {{1.0f, 0.95f, 0.8f}, 6.0f});
+    registry.AddComponent<Mesh>(lightEntity, CreateColoredCube(0.6f));
 
     // create camera entity
     Entity camEntity = registry.CreateEntity();
@@ -238,6 +316,7 @@ int main()
         }
 
         demo.Update(registry, dt);
+        lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
         renderSystem.Update(registry, dt);
 
