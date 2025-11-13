@@ -1,34 +1,44 @@
 #include "ecs/RenderSystem.hpp"
 #include <glm/glm.hpp>
 #include <iostream>
+#include "ecs/Light.hpp"
+#include "ecs/RenderSystem.hpp"
+#include <glm/glm.hpp>
+#include <iostream>
+#include "ecs/Light.hpp"
+#include <fstream>
+#include <sstream>
+#include <string>
 
-static const char *vShader = R"(
-#version 330 core
-layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec2 aTex;
-out vec2 vTex;
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
-void main() {
-    vTex = aTex;
-    gl_Position = proj * view * model * vec4(aPos, 1.0);
+// load file contents into a string
+static std::string ReadFileToString(const std::string &path)
+{
+    std::ifstream in(path, std::ios::in | std::ios::binary);
+    if (!in)
+        return {};
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
 }
-)";
-
-static const char *fShader = R"(
-#version 330 core
-in vec2 vTex;
-out vec4 FragColor;
-uniform sampler2D tex0;
-void main() {
-    FragColor = texture(tex0, vTex);
-}
-)";
 
 RenderSystem::RenderSystem()
 {
-    shader = new Shader(vShader, fShader);
+    // load shaders from data/shaders/*
+    std::string vs = ReadFileToString("data/shaders/vertex.glsl");
+    std::string fs = ReadFileToString("data/shaders/fragment.glsl");
+    const char *vsrc = nullptr;
+    const char *fsrc = nullptr;
+    if (!vs.empty() && !fs.empty())
+    {
+        vsrc = vs.c_str();
+        fsrc = fs.c_str();
+    }
+    else
+    {
+        std::cerr << "Warning: failed to load shaders from data/shaders/" << std::endl;
+    }
+
+    shader = new Shader(vsrc, fsrc);
 
     view = glm::lookAt(glm::vec3(3, 2, 6),
                        glm::vec3(0, 0, 0),
@@ -40,6 +50,7 @@ RenderSystem::RenderSystem()
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    glEnable(GL_FRAMEBUFFER_SRGB);
 }
 
 void RenderSystem::Update(Registry &registry, float dt)
@@ -60,6 +71,44 @@ void RenderSystem::Update(Registry &registry, float dt)
     shader->SetMat4("view", &view[0][0]);
     shader->SetMat4("proj", &proj[0][0]);
 
+    // find first light in scene (if any)
+    glm::vec3 lightPos(0.0f);
+    glm::vec3 lightColor(1.0f);
+    float lightIntensity = 1.0f;
+    for (auto [le, lptr] : registry.View<Light>())
+    {
+        auto ltransform = registry.GetComponent<Transform>(le);
+        if (ltransform && lptr)
+        {
+            lightPos = ltransform->position;
+            lightColor = lptr->color;
+            lightIntensity = lptr->intensity;
+            break;
+        }
+    }
+
+    // find camera position for specular/view calculations
+    glm::vec3 viewPos(0.0f);
+    for (auto [ce, cam] : registry.View<Camera>())
+    {
+        viewPos = cam->pos;
+        break;
+    }
+
+    // set global light uniforms
+    GLint locLP = glGetUniformLocation(shader->id, "lightPos");
+    if (locLP >= 0)
+        glUniform3f(locLP, lightPos.x, lightPos.y, lightPos.z);
+    GLint locLC = glGetUniformLocation(shader->id, "lightColor");
+    if (locLC >= 0)
+        glUniform3f(locLC, lightColor.x, lightColor.y, lightColor.z);
+    GLint locLI = glGetUniformLocation(shader->id, "lightIntensity");
+    if (locLI >= 0)
+        glUniform1f(locLI, lightIntensity);
+    GLint locVP = glGetUniformLocation(shader->id, "viewPos");
+    if (locVP >= 0)
+        glUniform3f(locVP, viewPos.x, viewPos.y, viewPos.z);
+
     for (auto [e, transform] : registry.View<Transform>())
     {
         auto mesh = registry.GetComponent<Mesh>(e);
@@ -68,6 +117,9 @@ void RenderSystem::Update(Registry &registry, float dt)
 
         shader->SetMat4("model", &transform->GetMatrix()[0][0]);
         glBindVertexArray(mesh->vao);
+        GLint useTexLoc = glGetUniformLocation(shader->id, "useTex");
+        GLint objColorLoc = glGetUniformLocation(shader->id, "objectColor");
+
         if (mesh->texture)
         {
             glActiveTexture(GL_TEXTURE0);
@@ -75,7 +127,40 @@ void RenderSystem::Update(Registry &registry, float dt)
             GLint loc = glGetUniformLocation(shader->id, "tex0");
             if (loc >= 0)
                 glUniform1i(loc, 0);
+            if (useTexLoc >= 0)
+                glUniform1i(useTexLoc, 1);
+            // ensure non-emitter by default
+            GLint isEmitterLoc = glGetUniformLocation(shader->id, "isEmitter");
+            if (isEmitterLoc >= 0)
+                glUniform1i(isEmitterLoc, 0);
         }
+        else
+        {
+            if (useTexLoc >= 0)
+                glUniform1i(useTexLoc, 0);
+            auto lightComp = registry.GetComponent<Light>(e);
+            if (lightComp)
+            {
+                if (objColorLoc >= 0)
+                    glUniform3f(objColorLoc, lightComp->color.r, lightComp->color.g, lightComp->color.b);
+            }
+            else
+            {
+                if (objColorLoc >= 0)
+                    glUniform3f(objColorLoc, 1.0f, 1.0f, 1.0f);
+            }
+            // if this mesh corresponds to a Light component, mark it as an emitter
+            auto l = lightComp;
+            GLint isEmitterLoc = glGetUniformLocation(shader->id, "isEmitter");
+            if (isEmitterLoc >= 0)
+            {
+                if (l)
+                    glUniform1i(isEmitterLoc, 1);
+                else
+                    glUniform1i(isEmitterLoc, 0);
+            }
+        }
+
         glDrawElements(GL_TRIANGLES, mesh->indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
