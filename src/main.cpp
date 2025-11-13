@@ -1,71 +1,48 @@
-#include <SDL3/SDL.h>
-#include <glad/glad.h>
-#include <glm/glm.hpp>
-#include <imgui.h>
-#include <backends/imgui_impl_sdl3.h>
-#include <backends/imgui_impl_opengl3.h>
-#include <iostream>
+#include "renderer/Window.hpp"
+#include "renderer/Renderer.hpp"
+#include "ecs/Registry.hpp"
+#include "ecs/System.hpp"
 
-int main(int argc, char *argv[])
+struct Position
 {
-    // Initialize SDL3 (video + events)
-    if (!SDL_Init(SDL_INIT_VIDEO))
+    glm::vec3 pos;
+};
+
+class DemoSystem : public System
+{
+public:
+    void Update(Registry &registry, float dt) override
     {
-        std::cerr << "SDL Init Error: " << SDL_GetError() << std::endl;
-        return -1;
+        ImGui::Begin("ECS Demo");
+        for (auto [e, p] : registry.View<Position>())
+        {
+            ImGui::Text("Entity %u at (%.2f, %.2f, %.2f)", e, p->pos.x, p->pos.y, p->pos.z);
+            p->pos.x += 0.25f * dt;
+        }
+        ImGui::End();
     }
+};
 
-    // OpenGL attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+int main()
+{
+    Window window;
+    if (!window.Init("FPS Duck", 800, 600))
+        return -1;
 
-    // Create SDL window with OpenGL
-    SDL_Window *window = SDL_CreateWindow("FPS Duck",
-                                          800, 600,
-                                          SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    if (!window)
+    Registry registry;
+    DemoSystem demo;
+    Renderer renderer;
+
+    // epic entities
+    for (int i = 0; i < 5; ++i)
     {
-        std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
+        Entity e = registry.CreateEntity();
+        registry.AddComponent<Position>(e, {{(float)i, 0, 0}});
     }
-
-    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-    if (!gl_context)
-    {
-        std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    SDL_GL_MakeCurrent(window, gl_context);
-    SDL_GL_SetSwapInterval(1); // Enable VSync
-
-    // Load OpenGL functions with GLAD
-    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
-    {
-        std::cerr << "Failed to initialize GLAD" << std::endl;
-        return -1;
-    }
-
-    // GLM test
-    glm::vec3 v(1.0f, 2.0f, 3.0f);
-    std::cout << "GLM vector length: " << glm::length(v) << std::endl;
-
-    // Setup ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    (void)io;
-    ImGui::StyleColorsDark();
-
-    // Initialize ImGui SDL3 + OpenGL3 backends
-    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
-    ImGui_ImplOpenGL3_Init("#version 330");
 
     bool running = true;
+    Uint64 prevTicks = SDL_GetTicks();
+
     while (running)
     {
         SDL_Event event;
@@ -76,34 +53,16 @@ int main(int argc, char *argv[])
                 running = false;
         }
 
-        // Start new ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        ImGui::NewFrame();
+        Uint64 now = SDL_GetTicks();
+        float dt = (now - prevTicks) / 1000.0f;
+        prevTicks = now;
 
-        // Simple window
-        ImGui::Begin("Demo Window");
-        ImGui::Text("Hello from ImGui!");
-        ImGui::Text("GLM vector length: %.2f", glm::length(v));
-        ImGui::End();
-
-        // Render
-        ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        SDL_GL_SwapWindow(window);
+        window.BeginFrame();
+        demo.Update(registry, dt);
+        renderer.RenderScene(registry);
+        window.EndFrame();
     }
 
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-
-    SDL_GL_DestroyContext(gl_context);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
+    window.Cleanup();
     return 0;
 }
