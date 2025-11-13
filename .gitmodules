@@ -14,3 +14,6 @@
 	path = extern/imgui
 	url = https://github.com/ocornut/imgui
 
+[submodule "extern/tinyobjloader"]
+	path = extern/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader
