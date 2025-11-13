@@ -57,8 +57,10 @@ void Window::EndFrame()
 {
   ImGui::Render();
   glViewport(0, 0, (int)io->DisplaySize.x, (int)io->DisplaySize.y);
-  glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
+  // Don't clear the color buffer here — 3D scene has already been rendered
+  // by the RenderSystem. Only clear depth so ImGui draws on top correctly.
+  glClearDepth(1.0);
+  glClear(GL_DEPTH_BUFFER_BIT);
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   SDL_GL_SwapWindow(window);
 }
