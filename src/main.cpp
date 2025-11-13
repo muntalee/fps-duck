@@ -8,11 +8,14 @@
 #include "ecs/CameraSystem.hpp"
 #include "ecs/Texture.hpp"
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include "ecs/LightSystem.hpp"
 #include "ecs/Light.hpp"
 #include "ecs/Model.hpp"
+#include "ecs/FirstPerson.hpp"
+#include "ecs/FirstPersonSystem.hpp"
 
 struct Position
 {
@@ -230,7 +233,7 @@ Mesh CreateColoredCube(float size = 0.2f)
 int main()
 {
     Window window;
-    if (!window.Init("FPS Duck", 800, 600))
+    if (!window.Init("FPS Duck", 1280, 720))
         return -1;
 
     Registry registry;
@@ -239,6 +242,7 @@ int main()
 
     DemoSystem demo(&showUI);
     RenderSystem renderSystem;
+    FirstPersonSystem fpSystem;
 
     // rotating cube
     Entity cube = registry.CreateEntity();
@@ -249,7 +253,10 @@ int main()
     Entity gun = registry.CreateEntity();
     Mesh gunMesh = Model::LoadFromOBJ("data/gun/gun.obj");
     registry.AddComponent<Mesh>(gun, gunMesh);
-    registry.AddComponent<Transform>(gun, {{0.5f, -0.5f, 0.0f}, {0, 90.0f, 0}, {0.6f, 0.6f, 0.6f}});
+
+    // me when camera
+    registry.AddComponent<FirstPerson>(gun, {});
+    registry.AddComponent<Transform>(gun, {});
 
     bool running = true;
     Uint64 prevTicks = SDL_GetTicks();
@@ -325,6 +332,7 @@ int main()
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
+        fpSystem.Update(registry, dt);
         renderSystem.Update(registry, dt);
 
         window.EndFrame();

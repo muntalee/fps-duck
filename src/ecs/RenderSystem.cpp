@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include "ecs/Light.hpp"
+#include "ecs/FirstPerson.hpp"
 #include "ecs/RenderSystem.hpp"
 #include <glm/glm.hpp>
 #include <iostream>
@@ -115,7 +116,15 @@ void RenderSystem::Update(Registry &registry, float dt)
         if (!mesh)
             continue;
 
-        shader->SetMat4("model", &transform->GetMatrix()[0][0]);
+        glm::mat4 modelMat = transform->GetMatrix();
+        // if entity is first-person, render it in camera (view) space so it stays fixed on-screen
+        if (registry.GetComponent<FirstPerson>(e))
+        {
+            // model in world space = inverse(view) * model_in_camera_space
+            modelMat = glm::inverse(view) * modelMat;
+        }
+
+        shader->SetMat4("model", &modelMat[0][0]);
         glBindVertexArray(mesh->vao);
         GLint useTexLoc = glGetUniformLocation(shader->id, "useTex");
         GLint objColorLoc = glGetUniformLocation(shader->id, "objectColor");
