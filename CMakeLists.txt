@@ -5,13 +5,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(OUT ${CMAKE_PROJECT_NAME})
 file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.cpp)
-
 add_executable(${OUT} ${SOURCES})
+
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
 
 # sdl
 add_subdirectory(${CMAKE_SOURCE_DIR}/extern/sdl)
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/sdl/include)
-target_link_libraries(${OUT} PRIVATE SDL3::SDL3)
 
 # glm
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/glm)
@@ -19,12 +20,11 @@ target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/glm)
 # glad
 add_library(glad ${CMAKE_SOURCE_DIR}/extern/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/extern/glad/include)
-target_link_libraries(${OUT} PRIVATE glad)
 
 # stb_image
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/stb)
 
-# imgui
+# ImGui
 file(GLOB IMGUI_SRC
     ${CMAKE_SOURCE_DIR}/extern/imgui/*.cpp
     ${CMAKE_SOURCE_DIR}/extern/imgui/backends/imgui_impl_sdl3.cpp
@@ -37,11 +37,18 @@ target_include_directories(imgui PUBLIC
     ${CMAKE_SOURCE_DIR}/extern/sdl/include
     ${CMAKE_SOURCE_DIR}/extern/glad/include
 )
-target_link_libraries(${OUT} PRIVATE imgui)
+
+# link ImGui to sdl and glad
+target_link_libraries(imgui PUBLIC SDL3::SDL3 glad)
 
 # opengl
 find_package(OpenGL REQUIRED)
-target_link_libraries(${OUT} PRIVATE OpenGL::GL)
+
+target_link_libraries(${OUT} PRIVATE
+    imgui
+    glad
+    SDL3::SDL3
+    OpenGL::GL
+)
 
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
