@@ -21,6 +21,10 @@ target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/sdl/include
 # glm
 target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/glm)
 
+# tinyobjloader
+target_include_directories(${OUT} PRIVATE ${CMAKE_SOURCE_DIR}/extern/tinyobjloader)
+
+
 # glad
 add_library(glad ${CMAKE_SOURCE_DIR}/extern/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/extern/glad/include)
