@@ -8,6 +8,7 @@
 #include "ecs/CameraSystem.hpp"
 #include <glm/glm.hpp>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 struct Position
 {
@@ -16,10 +17,67 @@ struct Position
 
 class DemoSystem : public System
 {
+    bool *showUI = nullptr;
+
 public:
+    DemoSystem(bool *show = nullptr) : showUI(show) {}
+
     void Update(Registry &registry, float dt) override
     {
-        ImGui::Begin("joemama");
+        if (!showUI || !*showUI)
+            return;
+
+        ImGuiContext *ctx = ImGui::GetCurrentContext();
+        if (!ctx || !ctx->WithinFrameScope)
+            return;
+
+        ImGui::Begin("ECS Demo");
+
+        ImGuiIO &io = ImGui::GetIO();
+        float fps = io.Framerate;
+        ImGui::Text("FPS: %.1f (%.2f ms/frame)", fps, fps > 0.0f ? 1000.0f / fps : 0.0f);
+        ImGui::Text("Delta time: %.4f s", dt);
+
+        int posCount = 0;
+        for (auto [e, p] : registry.View<Position>())
+            ++posCount;
+        int transformCount = 0;
+        for (auto [e, t] : registry.View<Transform>())
+            ++transformCount;
+        int meshCount = 0;
+        for (auto [e, m] : registry.View<Mesh>())
+            ++meshCount;
+        int cameraCount = 0;
+        for (auto [e, c] : registry.View<Camera>())
+            ++cameraCount;
+
+        ImGui::Separator();
+        ImGui::Text("Component counts:");
+        ImGui::BulletText("Position: %d", posCount);
+        ImGui::BulletText("Transform: %d", transformCount);
+        ImGui::BulletText("Mesh: %d", meshCount);
+        ImGui::BulletText("Camera: %d", cameraCount);
+
+        ImGui::Separator();
+        ImGui::Text("Runtime state:");
+        ImGui::Text("Menu visible: %s", (*showUI) ? "Yes" : "No");
+        ImGui::Text("Mouse captured: %s", (*showUI) ? "No" : "Yes");
+
+        // debug: list first 5 transforms
+        int shown = 0;
+        ImGui::Separator();
+        ImGui::Text("Transforms (first 5):");
+        for (auto [e, t] : registry.View<Transform>())
+        {
+            if (shown++ >= 5)
+                break;
+            ImGui::Text("E%u pos=(%.2f, %.2f, %.2f) rot=(%.1f, %.1f, %.1f) scale=(%.2f, %.2f, %.2f)",
+                        e,
+                        t->position.x, t->position.y, t->position.z,
+                        t->rotation.x, t->rotation.y, t->rotation.z,
+                        t->scale.x, t->scale.y, t->scale.z);
+        }
+
         ImGui::End();
     }
 };
@@ -66,7 +124,10 @@ int main()
         return -1;
 
     Registry registry;
-    DemoSystem demo;
+    bool showUI = false;       // false = playing (camera captured), true = menu shown
+    bool inputCaptured = true; // when true, camera captures mouse & processes input
+
+    DemoSystem demo(&showUI);
     RenderSystem renderSystem;
 
     // rotating cube
@@ -74,17 +135,13 @@ int main()
     registry.AddComponent<Transform>(cube, {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}});
     registry.AddComponent<Mesh>(cube, CreateCube());
 
-    // Create demo ECS-only entities
-    for (int i = 0; i < 5; ++i)
-    {
-        Entity e = registry.CreateEntity();
-        registry.AddComponent<Position>(e, {{(float)i, 0, 0}});
-    }
-
     bool running = true;
     Uint64 prevTicks = SDL_GetTicks();
 
     CameraSystem cameraSystem;
+    cameraSystem.SetEnabled(&inputCaptured);
+    // start with mouse captured for FPS look
+    SDL_SetWindowRelativeMouseMode(window.window, inputCaptured);
 
     // create camera entity
     Entity camEntity = registry.CreateEntity();
@@ -96,6 +153,15 @@ int main()
         while (SDL_PollEvent(&event))
         {
             ImGui_ImplSDL3_ProcessEvent(&event);
+
+            // toggle menu / capture on escapes
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)
+            {
+                showUI = !showUI;
+                inputCaptured = !showUI;
+                // enable/disable relative mouse mode on the window
+                SDL_SetWindowRelativeMouseMode(window.window, inputCaptured);
+            }
             if (event.type == SDL_EVENT_QUIT)
                 running = false;
         }
@@ -104,15 +170,33 @@ int main()
         float dt = (now - prevTicks) / 1000.0f;
         prevTicks = now;
 
+        // if menu is visible, show an escape-menu with framerate
+        if (showUI)
+        {
+            ImGuiContext *ctx = ImGui::GetCurrentContext();
+            if (ctx && ctx->WithinFrameScope)
+            {
+                ImGui::Begin("Escape Menu");
+                ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+                if (ImGui::Button("Resume (ESC)"))
+                {
+                    showUI = false;
+                    inputCaptured = true;
+                    SDL_SetWindowRelativeMouseMode(window.window, inputCaptured);
+                }
+                ImGui::End();
+            }
+        }
+
         window.BeginFrame();
 
         // rotate cube
-        if (auto *t = registry.GetComponent<Transform>(cube))
-        {
-            t->rotation.y += 50.0f * dt;
-            if (t->rotation.y > 360.0f)
-                t->rotation.y -= 360.0f;
-        }
+        // if (auto *t = registry.GetComponent<Transform>(cube))
+        // {
+        //     t->rotation.y += 50.0f * dt;
+        //     if (t->rotation.y > 360.0f)
+        //         t->rotation.y -= 360.0f;
+        // }
 
         demo.Update(registry, dt);
         cameraSystem.Update(registry, dt);
