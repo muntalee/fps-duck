@@ -5,16 +5,22 @@
 #include <iostream>
 #include <glm/glm.hpp>
 #include "ecs/Mesh.hpp"
+#include "ecs/Texture.hpp"
 #include "ecs/Transform.hpp"
 #include "ecs/Collider.hpp"
 
 namespace
 {
     // create a simple plane mesh centered at origin on the XZ plane (y = 0)
-    Mesh CreatePlaneMesh(float width, float depth)
+    // repeatX / repeatZ control how many times the texture repeats across the plane
+    Mesh CreatePlaneMesh(float width, float depth, float repeatX = 1.0f, float repeatZ = 1.0f)
     {
         float hw = width * 0.5f;
         float hd = depth * 0.5f;
+        float u0 = 0.0f;
+        float v0 = 0.0f;
+        float u1 = repeatX;
+        float v1 = repeatZ;
         float vertices[] = {
             -hw,
             0.0f,
@@ -22,32 +28,32 @@ namespace
             0.0f,
             1.0f,
             0.0f,
-            0.0f,
-            0.0f,
+            u0,
+            v0,
             hw,
             0.0f,
             -hd,
             0.0f,
             1.0f,
             0.0f,
-            1.0f,
-            0.0f,
+            u1,
+            v0,
             hw,
             0.0f,
             hd,
             0.0f,
             1.0f,
             0.0f,
-            1.0f,
-            1.0f,
+            u1,
+            v1,
             -hw,
             0.0f,
             hd,
             0.0f,
             1.0f,
             0.0f,
-            0.0f,
-            1.0f,
+            u0,
+            v1,
         };
         unsigned int indices[] = {0, 1, 2, 2, 3, 0};
 
@@ -72,7 +78,7 @@ namespace
 
         mesh.indexCount = static_cast<int>(sizeof(indices) / sizeof(unsigned int));
         mesh.texture = 0;
-        mesh.color = glm::vec3(0.15f, 0.8f, 0.25f); // grassy green
+        mesh.color = glm::vec3(0.15f, 0.8f, 0.25f); // grassy green (fallback)
         return mesh;
     }
 
@@ -175,10 +181,14 @@ namespace World
         float width = static_cast<float>(cols) * tileSize;
         float depth = static_cast<float>(rows) * tileSize;
 
-        // ground plane
-        Mesh groundMesh = CreatePlaneMesh(width, depth);
+        // ground plane (repeat the grass texture per tile so it tiles across the map)
+        float repeatsX = static_cast<float>(cols);
+        float repeatsZ = static_cast<float>(rows);
+        Mesh groundMesh = CreatePlaneMesh(width, depth, repeatsX, repeatsZ);
         Entity ground = registry.CreateEntity();
         registry.AddComponent<Transform>(ground, {{0.0f, 0.0f, 0.0f}, {0, 0, 0}, {1, 1, 1}});
+        // try to load grass texture; if it fails we'll fall back to the green color
+        groundMesh.texture = Texture::Load("data/grass.jpg");
         registry.AddComponent<Mesh>(ground, groundMesh);
         Collider groundCol;
         groundCol.type = Collider::AABB;
@@ -187,7 +197,9 @@ namespace World
 
         // create one cube mesh and reuse it for all cubes
         Mesh cubeMesh = CreateUnitCube();
-        cubeMesh.color = glm::vec3(0.6f, 0.4f, 0.2f); // earthy brown
+        // try to texture cubes with wood
+        cubeMesh.texture = Texture::Load("data/wood.jpg");
+        cubeMesh.color = glm::vec3(0.6f, 0.4f, 0.2f); // earthy brown fallback
 
         // center offset so map is centered around origin
         float offsetX = (static_cast<float>(cols - 1) * tileSize) * 0.5f;
