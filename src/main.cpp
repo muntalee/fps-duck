@@ -20,6 +20,9 @@
 #include "ecs/BulletSystem.hpp"
 #include "ecs/Player.hpp"
 #include "ecs/PlayerSystem.hpp"
+#include "ecs/CollisionSystem.hpp"
+#include "ecs/Collider.hpp"
+#include "ecs/Velocity.hpp"
 
 struct Position
 {
@@ -171,6 +174,7 @@ int main()
     RenderSystem renderSystem;
     BulletSystem bulletSystem;
     PlayerSystem playerSystem(&bulletSystem);
+    CollisionSystem collisionSystem;
     FirstPersonSystem fpSystem;
 
     // load gun model from data/gun (OBJ + MTL + textures expected)
@@ -206,6 +210,13 @@ int main()
     Player playerComp;
     playerComp.gun = gun;
     registry.AddComponent<Player>(camEntity, playerComp);
+
+    // give camera a collider and velocity for physics
+    Collider pcol;
+    pcol.type = Collider::AABB;
+    pcol.halfExtents = glm::vec3(0.3f, 0.9f, 0.3f);
+    registry.AddComponent<Collider>(camEntity, pcol);
+    registry.AddComponent<Velocity>(camEntity, Velocity{});
 
     // the world
     World::LoadFromFile(registry, "data/world.txt", 1.0f);
@@ -261,13 +272,13 @@ int main()
 
         window.BeginFrame();
 
-        // update systems
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
-        fpSystem.Update(registry, dt);
         playerSystem.Update(registry, dt);
         bulletSystem.Update(registry, dt);
+        collisionSystem.Update(registry, dt);
+        fpSystem.Update(registry, dt);
         renderSystem.Update(registry, dt);
 
         window.EndFrame();

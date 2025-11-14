@@ -3,6 +3,7 @@
 #include "ecs/Transform.hpp"
 #include "ecs/Mesh.hpp"
 #include "ecs/Registry.hpp"
+#include "ecs/Collider.hpp"
 #include <vector>
 #include <cmath>
 #include <glm/gtc/constants.hpp>
@@ -130,4 +131,9 @@ void BulletSystem::SpawnBullet(Registry &registry, const glm::vec3 &pos, const g
     b.speed = speed;
     b.ttl = ttl;
     registry.AddComponent<Bullet>(e, b);
+
+    Collider col;
+    col.type = Collider::Sphere;
+    col.radius = 0.07f;
+    registry.AddComponent<Collider>(e, col);
 }

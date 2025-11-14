@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "ecs/Mesh.hpp"
 #include "ecs/Transform.hpp"
+#include "ecs/Collider.hpp"
 
 namespace
 {
@@ -179,6 +180,10 @@ namespace World
         Entity ground = registry.CreateEntity();
         registry.AddComponent<Transform>(ground, {{0.0f, 0.0f, 0.0f}, {0, 0, 0}, {1, 1, 1}});
         registry.AddComponent<Mesh>(ground, groundMesh);
+        Collider groundCol;
+        groundCol.type = Collider::AABB;
+        groundCol.halfExtents = glm::vec3(width * 0.5f, 0.1f, depth * 0.5f);
+        registry.AddComponent<Collider>(ground, groundCol);
 
         // create one cube mesh and reuse it for all cubes
         Mesh cubeMesh = CreateUnitCube();
@@ -204,6 +209,10 @@ namespace World
                     // cube sits on top of ground: cube center y = tileSize/2
                     registry.AddComponent<Transform>(e, {{x, tileSize * 0.5f, z}, {0, 0, 0}, {tileSize, tileSize, tileSize}});
                     registry.AddComponent<Mesh>(e, cubeMesh);
+                    Collider ccol;
+                    ccol.type = Collider::AABB;
+                    ccol.halfExtents = glm::vec3(tileSize * 0.5f);
+                    registry.AddComponent<Collider>(e, ccol);
                 }
             }
         }
