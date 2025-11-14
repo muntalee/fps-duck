@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include "ecs/Light.hpp"
+#include <imgui.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -78,9 +79,15 @@ void RenderSystem::Update(Registry &registry, float dt)
     }
 
     shader->SetMat4("view", &view[0][0]);
+
+    // avoid stretching
+    ImGuiIO &io = ImGui::GetIO();
+    float width = io.DisplaySize.x > 0.0f ? io.DisplaySize.x : 800.0f;
+    float height = io.DisplaySize.y > 0.0f ? io.DisplaySize.y : 600.0f;
+    proj = glm::perspective(glm::radians(45.0f), width / height, 0.1f, 100.0f);
     shader->SetMat4("proj", &proj[0][0]);
 
-    // find first light in scene (if any)
+    // find first light in scene
     glm::vec3 lightPos(0.0f);
     glm::vec3 lightColor(1.0f);
     float lightIntensity = 1.0f;

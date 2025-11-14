@@ -34,6 +34,16 @@ public:
   }
 
   template <typename T>
+  void RemoveComponent(Entity e)
+  {
+    auto type = std::type_index(typeid(T));
+    auto it = components.find(type);
+    if (it == components.end())
+      return;
+    std::static_pointer_cast<ComponentArray<T>>(it->second)->Remove(e);
+  }
+
+  template <typename T>
   std::vector<std::pair<Entity, T *>> View()
   {
     std::vector<std::pair<Entity, T *>> out;

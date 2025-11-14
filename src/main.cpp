@@ -17,6 +17,9 @@
 #include "ecs/FirstPerson.hpp"
 #include "ecs/FirstPersonSystem.hpp"
 #include "World.hpp"
+#include "ecs/BulletSystem.hpp"
+#include "ecs/Player.hpp"
+#include "ecs/PlayerSystem.hpp"
 
 struct Position
 {
@@ -166,8 +169,9 @@ int main()
 
     DemoSystem demo(&showUI);
     RenderSystem renderSystem;
+    BulletSystem bulletSystem;
+    PlayerSystem playerSystem(&bulletSystem);
     FirstPersonSystem fpSystem;
-
 
     // load gun model from data/gun (OBJ + MTL + textures expected)
     Entity gun = registry.CreateEntity();
@@ -198,6 +202,11 @@ int main()
     Entity camEntity = registry.CreateEntity();
     registry.AddComponent<Camera>(camEntity, {});
 
+    // player entity
+    Player playerComp;
+    playerComp.gun = gun;
+    registry.AddComponent<Player>(camEntity, playerComp);
+
     // the world
     World::LoadFromFile(registry, "data/world.txt", 1.0f);
 
@@ -215,6 +224,14 @@ int main()
                 inputCaptured = !showUI;
                 // enable/disable relative mouse mode on the window
                 SDL_SetWindowRelativeMouseMode(window.window, inputCaptured);
+            }
+
+            // fire on left mouse button
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT && inputCaptured)
+            {
+                auto p = registry.GetComponent<Player>(camEntity);
+                if (p)
+                    p->wantFire = true;
             }
             if (event.type == SDL_EVENT_QUIT)
                 running = false;
@@ -244,10 +261,13 @@ int main()
 
         window.BeginFrame();
 
+        // update systems
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
         fpSystem.Update(registry, dt);
+        playerSystem.Update(registry, dt);
+        bulletSystem.Update(registry, dt);
         renderSystem.Update(registry, dt);
 
         window.EndFrame();
