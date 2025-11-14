@@ -24,6 +24,7 @@
 #include "ecs/CollisionSystem.hpp"
 #include "ecs/Collider.hpp"
 #include "ecs/Velocity.hpp"
+#include "ecs/SkyboxSystem.hpp"
 
 struct Position
 {
@@ -173,6 +174,7 @@ int main()
 
     DemoSystem demo(&showUI);
     RenderSystem renderSystem;
+    SkyboxSystem skyboxSystem;
     BulletSystem bulletSystem;
     PlayerSystem playerSystem(&bulletSystem);
     CollisionSystem collisionSystem;
@@ -202,7 +204,6 @@ int main()
     Entity lightEntity = registry.CreateEntity();
     registry.AddComponent<Transform>(lightEntity, {{8.0f, 8.0f, 8.0f}, {0, 0, 0}, {0.6f, 0.6f, 0.6f}});
     registry.AddComponent<Light>(lightEntity, {{1.0f, 0.95f, 0.8f}, 2.0f});
-    registry.AddComponent<Mesh>(lightEntity, CreateColoredCube(0.6f));
 
     // create camera entity
     Entity camEntity = registry.CreateEntity();
@@ -222,6 +223,20 @@ int main()
 
     // the world
     World::LoadFromFile(registry, "data/world.txt", 1.0f);
+
+    // skybox from cross image
+    {
+        const char *p = "data/skybox.jpg";
+        FILE *f = fopen(p, "r");
+        if (f)
+        {
+            fclose(f);
+            if (!skyboxSystem.LoadFromCrossImage(p))
+                std::cerr << "Skybox: failed to load cross image " << p << std::endl;
+            else
+                renderSystem.SetSkybox(&skyboxSystem);
+        }
+    }
 
     while (running)
     {

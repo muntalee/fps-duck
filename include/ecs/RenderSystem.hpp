@@ -5,6 +5,7 @@
 #include "ecs/Mesh.hpp"
 #include "ecs/Camera.hpp"
 #include <glm/gtc/matrix_transform.hpp>
+class SkyboxSystem;
 
 class RenderSystem : public System
 {
@@ -14,5 +15,9 @@ class RenderSystem : public System
 public:
     RenderSystem();
     void Update(Registry &registry, float dt) override;
+    void SetSkybox(SkyboxSystem *s) { skybox = s; }
     void Cleanup();
+
+private:
+    SkyboxSystem *skybox = nullptr;
 };

@@ -1,16 +1,13 @@
 #include "ecs/RenderSystem.hpp"
-#include <glm/glm.hpp>
-#include <iostream>
+#include "ecs/SkyboxSystem.hpp"
 #include "ecs/Light.hpp"
 #include "ecs/FirstPerson.hpp"
-#include "ecs/RenderSystem.hpp"
 #include <glm/glm.hpp>
-#include <iostream>
-#include "ecs/Light.hpp"
 #include <imgui.h>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <iostream>
 
 // load file contents into a string
 static std::string ReadFileToString(const std::string &path)
@@ -59,6 +56,20 @@ void RenderSystem::Update(Registry &registry, float dt)
 {
     if (!shader || shader->id == 0)
         return;
+
+    // debugging: report counts once so we can see whether meshes exist
+    static bool reported = false;
+    if (!reported)
+    {
+        int meshCount = 0;
+        int transformCount = 0;
+        for (auto [e, m] : registry.View<Mesh>())
+            ++meshCount;
+        for (auto [e, t] : registry.View<Transform>())
+            ++transformCount;
+        std::cerr << "RenderSystem: meshes=" << meshCount << " transforms=" << transformCount << std::endl;
+        reported = true;
+    }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader->Use();
@@ -125,6 +136,22 @@ void RenderSystem::Update(Registry &registry, float dt)
     if (locVP >= 0)
         glUniform3f(locVP, viewPos.x, viewPos.y, viewPos.z);
 
+    // render skybox (if set) after clearing and camera/projection are updated
+    if (skybox)
+    {
+        skybox->Update(registry, dt);
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR)
+            std::cerr << "RenderSystem: GL error after skybox draw: 0x" << std::hex << err << std::dec << std::endl;
+    }
+
+    // ensure our main shader is active again
+    shader->Use();
+
+    // make sure texture unit 0 is active and cube map unbound so mesh draws behave predictably
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
     for (auto [e, transform] : registry.View<Transform>())
     {
         auto mesh = registry.GetComponent<Mesh>(e);
@@ -140,7 +167,13 @@ void RenderSystem::Update(Registry &registry, float dt)
         }
 
         shader->SetMat4("model", &modelMat[0][0]);
+        // bind mesh VAO and check GL state
         glBindVertexArray(mesh->vao);
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR)
+        {
+            std::cerr << "RenderSystem: GL error after binding VAO for entity " << e << ": 0x" << std::hex << err << std::dec << std::endl;
+        }
         GLint useTexLoc = glGetUniformLocation(shader->id, "useTex");
         GLint objColorLoc = glGetUniformLocation(shader->id, "objectColor");
 
@@ -186,9 +219,18 @@ void RenderSystem::Update(Registry &registry, float dt)
             }
         }
 
+        // draw and check for errors (report entity and VAO/indexCount)
         glDrawElements(GL_TRIANGLES, mesh->indexCount, GL_UNSIGNED_INT, 0);
+        err = glGetError();
+        if (err != GL_NO_ERROR)
+        {
+            std::cerr << "RenderSystem: GL error after glDrawElements for entity " << e << " (vao=" << mesh->vao << " idxCount=" << mesh->indexCount << "): 0x" << std::hex << err << std::dec << std::endl;
+        }
         glBindVertexArray(0);
     }
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR)
+        std::cerr << "RenderSystem: GL error after mesh draws: 0x" << std::hex << err << std::dec << std::endl;
 }
 
 void RenderSystem::Cleanup()
