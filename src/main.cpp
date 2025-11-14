@@ -17,6 +17,7 @@
 #include "ecs/FirstPerson.hpp"
 #include "ecs/FirstPersonSystem.hpp"
 #include "World.hpp"
+#include "ecs/MovementSystem.hpp"
 #include "ecs/BulletSystem.hpp"
 #include "ecs/Player.hpp"
 #include "ecs/PlayerSystem.hpp"
@@ -175,6 +176,7 @@ int main()
     BulletSystem bulletSystem;
     PlayerSystem playerSystem(&bulletSystem);
     CollisionSystem collisionSystem;
+    MovementSystem movementSystem;
     FirstPersonSystem fpSystem;
 
     // load gun model from data/gun (OBJ + MTL + textures expected)
@@ -275,6 +277,7 @@ int main()
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
+        movementSystem.Update(registry, dt);
         playerSystem.Update(registry, dt);
         bulletSystem.Update(registry, dt);
         collisionSystem.Update(registry, dt);
