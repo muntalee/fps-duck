@@ -62,6 +62,14 @@ void RenderSystem::Update(Registry &registry, float dt)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader->Use();
 
+    GLint vp[4] = {0, 0, 800, 600};
+    glGetIntegerv(GL_VIEWPORT, vp);
+    if (vp[3] > 0)
+    {
+        float aspect = static_cast<float>(vp[2]) / static_cast<float>(vp[3]);
+        proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+    }
+
     // update camera view matrix from any Camera component, then upload
     for (auto [e, cam] : registry.View<Camera>())
     {
@@ -155,8 +163,9 @@ void RenderSystem::Update(Registry &registry, float dt)
             }
             else
             {
+                // use mesh color when no texture and no explicit light component
                 if (objColorLoc >= 0)
-                    glUniform3f(objColorLoc, 1.0f, 1.0f, 1.0f);
+                    glUniform3f(objColorLoc, mesh->color.r, mesh->color.g, mesh->color.b);
             }
             // if this mesh corresponds to a Light component, mark it as an emitter
             auto l = lightComp;

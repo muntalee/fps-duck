@@ -16,6 +16,7 @@
 #include "ecs/Model.hpp"
 #include "ecs/FirstPerson.hpp"
 #include "ecs/FirstPersonSystem.hpp"
+#include "World.hpp"
 
 struct Position
 {
@@ -89,83 +90,6 @@ public:
     }
 };
 
-// sample cube with UVs (24 vertices, 36 indices)
-Mesh CreateCube()
-{
-    // positions (x,y,z), normals (x,y,z), texcoords (u,v) for each face (4 verts per face)
-    float vertices[] = {
-        // front (+Z)
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        // back (-Z)
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        // left (-X)
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        // right (+X)
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        // top (+Y)
-        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        // bottom (-Y)
-        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f};
-
-    unsigned int indices[] = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4,
-        8, 9, 10, 10, 11, 8,
-        12, 13, 14, 14, 15, 12,
-        16, 17, 18, 18, 19, 16,
-        20, 21, 22, 22, 23, 20};
-
-    Mesh mesh;
-    glGenVertexArrays(1, &mesh.vao);
-    glGenBuffers(1, &mesh.vbo);
-    glGenBuffers(1, &mesh.ebo);
-
-    glBindVertexArray(mesh.vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    // normal
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    // texcoord
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glBindVertexArray(0);
-
-    mesh.indexCount = static_cast<int>(sizeof(indices) / sizeof(unsigned int));
-
-    // load texture from data/ (copy to build dir required)
-    mesh.texture = Texture::Load("data/test.jpg");
-    return mesh;
-}
-
-// small colored cube (no texture) - used to visualize the light source
 Mesh CreateColoredCube(float size = 0.2f)
 {
     float s = size * 0.5f;
@@ -244,10 +168,6 @@ int main()
     RenderSystem renderSystem;
     FirstPersonSystem fpSystem;
 
-    // rotating cube
-    Entity cube = registry.CreateEntity();
-    registry.AddComponent<Transform>(cube, {{0, 0, 0}, {0, 0, 0}, {1, 1, 1}});
-    registry.AddComponent<Mesh>(cube, CreateCube());
 
     // load gun model from data/gun (OBJ + MTL + textures expected)
     Entity gun = registry.CreateEntity();
@@ -270,13 +190,16 @@ int main()
     // light system
     LightSystem lightSystem(&showUI);
     Entity lightEntity = registry.CreateEntity();
-    registry.AddComponent<Transform>(lightEntity, {{2.0f, 2.0f, 2.0f}, {0, 0, 0}, {0.6f, 0.6f, 0.6f}});
-    registry.AddComponent<Light>(lightEntity, {{1.0f, 0.95f, 0.8f}, 6.0f});
+    registry.AddComponent<Transform>(lightEntity, {{8.0f, 8.0f, 8.0f}, {0, 0, 0}, {0.6f, 0.6f, 0.6f}});
+    registry.AddComponent<Light>(lightEntity, {{1.0f, 0.95f, 0.8f}, 2.0f});
     registry.AddComponent<Mesh>(lightEntity, CreateColoredCube(0.6f));
 
     // create camera entity
     Entity camEntity = registry.CreateEntity();
     registry.AddComponent<Camera>(camEntity, {});
+
+    // the world
+    World::LoadFromFile(registry, "data/world.txt", 1.0f);
 
     while (running)
     {
@@ -320,14 +243,6 @@ int main()
         }
 
         window.BeginFrame();
-
-        // rotate cube
-        if (auto *t = registry.GetComponent<Transform>(cube))
-        {
-            t->rotation.y += 50.0f * dt;
-            if (t->rotation.y > 360.0f)
-                t->rotation.y -= 360.0f;
-        }
 
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
