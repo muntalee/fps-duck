@@ -25,6 +25,7 @@
 #include "ecs/Collider.hpp"
 #include "ecs/Velocity.hpp"
 #include "ecs/SkyboxSystem.hpp"
+#include "ecs/WorldRepeater.hpp"
 
 struct Position
 {
@@ -79,7 +80,6 @@ public:
         ImGui::Text("Menu visible: %s", (*showUI) ? "Yes" : "No");
         ImGui::Text("Mouse captured: %s", (*showUI) ? "No" : "Yes");
 
-        // debug: list first 5 transforms
         int shown = 0;
         ImGui::Separator();
         ImGui::Text("Transforms (first 5):");
@@ -180,6 +180,7 @@ int main()
     CollisionSystem collisionSystem;
     MovementSystem movementSystem;
     FirstPersonSystem fpSystem;
+    WorldRepeater repeater;
 
     // load gun model from data/gun (OBJ + MTL + textures expected)
     Entity gun = registry.CreateEntity();
@@ -220,9 +221,7 @@ int main()
     pcol.halfExtents = glm::vec3(0.3f, 0.9f, 0.3f);
     registry.AddComponent<Collider>(camEntity, pcol);
     registry.AddComponent<Velocity>(camEntity, Velocity{});
-
-    // the world
-    World::LoadFromFile(registry, "data/world.txt", 1.0f);
+    repeater.Configure("data/world.txt", 12, 6.0f, 1.0f);
 
     // skybox from cross image
     {
@@ -292,6 +291,7 @@ int main()
         demo.Update(registry, dt);
         lightSystem.Update(registry, dt);
         cameraSystem.Update(registry, dt);
+        repeater.Update(registry, dt);
         movementSystem.Update(registry, dt);
         playerSystem.Update(registry, dt);
         bulletSystem.Update(registry, dt);
