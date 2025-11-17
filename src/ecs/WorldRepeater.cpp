@@ -318,6 +318,246 @@ namespace
         mesh.color = glm::vec3(0.6f, 0.4f, 0.2f);
         return mesh;
     }
+
+    Mesh CreateWallMesh(float width, float height, float depth)
+    {
+        float hw = width * 0.5f;
+        float hh = height * 0.5f;
+        float hd = depth * 0.5f;
+        float vertices[] = {
+            -hw,
+            -hh,
+            -hd,
+            0,
+            0,
+            1,
+            0,
+            0,
+            hw,
+            -hh,
+            -hd,
+            0,
+            0,
+            1,
+            1,
+            0,
+            hw,
+            hh,
+            -hd,
+            0,
+            0,
+            1,
+            1,
+            1,
+            -hw,
+            hh,
+            -hd,
+            0,
+            0,
+            1,
+            0,
+            1,
+        };
+        unsigned int indices[] = {0, 1, 2, 2, 3, 0};
+        Mesh mesh;
+        glGenVertexArrays(1, &mesh.vao);
+        glGenBuffers(1, &mesh.vbo);
+        glGenBuffers(1, &mesh.ebo);
+        glBindVertexArray(mesh.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glBindVertexArray(0);
+        mesh.indexCount = static_cast<int>(sizeof(indices) / sizeof(unsigned int));
+        mesh.texture = 0;
+        mesh.color = glm::vec3(0.3f, 0.3f, 0.8f);
+        return mesh;
+    }
+
+    // create a sin-wave mesh spanning tileSize in X and depth in Z
+    Mesh CreateWaveMesh(float tileSize, int segments = 24)
+    {
+        int seg = std::max(4, segments);
+        float hw = tileSize * 0.5f;         // full tile width
+        float hd = tileSize * 0.15f;        // thickness in Z (half depth)
+        float amp = tileSize * 0.225f;      // amplitude (half of previous)
+        float extraLift = tileSize * 0.35f; // raise crest above previous placement
+        float lift = amp + extraLift;       // small lift so wave doesn't touch base exactly
+        float baseY = 0.0f;                 // floor relative to mesh local origin
+        int waves = 1;                      // number of wave cycles across the tile
+
+        std::vector<float> verts;
+        std::vector<unsigned int> inds;
+
+        auto pushV = [&](float x, float y, float z, float nx, float ny, float nz, float u, float v)
+        {
+            verts.push_back(x);
+            verts.push_back(y);
+            verts.push_back(z);
+            verts.push_back(nx);
+            verts.push_back(ny);
+            verts.push_back(nz);
+            verts.push_back(u);
+            verts.push_back(v);
+        };
+
+        // top strip (triangle strip style): back/top then front/top for each sample
+        const float x0 = -hw;
+        const float x1 = hw;
+        for (int i = 0; i <= seg; ++i)
+        {
+            float t = static_cast<float>(i) / static_cast<float>(seg);
+            float x = x0 + t * (x1 - x0);
+            float y = lift + amp * sinf(2.0f * 3.14159265f * waves * t);
+            // back-top (z = -hd)
+            pushV(x, y, -hd, 0.0f, 1.0f, 0.0f, t, 0.0f);
+            // front-top (z = +hd)
+            pushV(x, y, hd, 0.0f, 1.0f, 0.0f, t, 1.0f);
+        }
+        unsigned int topCount = static_cast<unsigned int>((seg + 1) * 2);
+
+        // front vertical strip (connect top to baseY at +hd)
+        unsigned int frontStart = static_cast<unsigned int>(verts.size() / 8);
+        for (int i = 0; i <= seg; ++i)
+        {
+            float t = static_cast<float>(i) / static_cast<float>(seg);
+            float x = x0 + t * (x1 - x0);
+            float y = lift + amp * sinf(2.0f * 3.14159265f * waves * t);
+            // top (front)
+            pushV(x, y, hd, 0.0f, 0.0f, 1.0f, t, 0.0f);
+            // bottom (front)
+            pushV(x, baseY, hd, 0.0f, 0.0f, 1.0f, t, 1.0f);
+        }
+        unsigned int frontCount = static_cast<unsigned int>((seg + 1) * 2);
+
+        // back vertical strip (connect top to baseY at -hd)
+        unsigned int backStart = static_cast<unsigned int>(verts.size() / 8);
+        for (int i = 0; i <= seg; ++i)
+        {
+            float t = static_cast<float>(i) / static_cast<float>(seg);
+            float x = x0 + t * (x1 - x0);
+            float y = lift + amp * sinf(2.0f * 3.14159265f * waves * t);
+            // top (back)
+            pushV(x, y, -hd, 0.0f, 0.0f, -1.0f, t, 0.0f);
+            // bottom (back)
+            pushV(x, baseY, -hd, 0.0f, 0.0f, -1.0f, t, 1.0f);
+        }
+        unsigned int backCount = static_cast<unsigned int>((seg + 1) * 2);
+
+        // bottom rectangle
+        unsigned int bottomStart = static_cast<unsigned int>(verts.size() / 8);
+        pushV(x0, baseY, hd, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f);
+        pushV(x1, baseY, hd, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+        pushV(x1, baseY, -hd, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f);
+        pushV(x0, baseY, -hd, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f);
+
+        // top surface (triangle strip style): two verts per sample => quads between pairs
+        for (unsigned int i = 0; i < static_cast<unsigned int>(seg); ++i)
+        {
+            unsigned int a = i * 2;
+            unsigned int b = a + 1;
+            unsigned int c = a + 2;
+            unsigned int d = a + 3;
+            inds.push_back(a);
+            inds.push_back(b);
+            inds.push_back(c);
+            inds.push_back(c);
+            inds.push_back(b);
+            inds.push_back(d);
+        }
+
+        // front vertical strip
+        unsigned int fBase = frontStart;
+        for (unsigned int i = 0; i < static_cast<unsigned int>(seg); ++i)
+        {
+            unsigned int a = fBase + i * 2;
+            unsigned int b = a + 1;
+            unsigned int c = a + 2;
+            unsigned int d = a + 3;
+            inds.push_back(a);
+            inds.push_back(c);
+            inds.push_back(b);
+            inds.push_back(c);
+            inds.push_back(d);
+            inds.push_back(b);
+        }
+
+        // back vertical strip
+        unsigned int bkBase = backStart;
+        for (unsigned int i = 0; i < static_cast<unsigned int>(seg); ++i)
+        {
+            unsigned int a = bkBase + i * 2;
+            unsigned int b = a + 1;
+            unsigned int c = a + 2;
+            unsigned int d = a + 3;
+            inds.push_back(a);
+            inds.push_back(b);
+            inds.push_back(c);
+            inds.push_back(c);
+            inds.push_back(b);
+            inds.push_back(d);
+        }
+
+        // bottom face (single quad)
+        inds.push_back(bottomStart + 0);
+        inds.push_back(bottomStart + 1);
+        inds.push_back(bottomStart + 2);
+        inds.push_back(bottomStart + 2);
+        inds.push_back(bottomStart + 3);
+        inds.push_back(bottomStart + 0);
+
+        // left cap (x0)
+        unsigned int leftTopBack = 0;
+        unsigned int leftTopFront = 1;
+        unsigned int leftFrontBottom = frontStart + 1;
+        unsigned int leftBackBottom = backStart + 1;
+        inds.push_back(leftTopBack);
+        inds.push_back(leftBackBottom);
+        inds.push_back(leftTopFront);
+        inds.push_back(leftTopFront);
+        inds.push_back(leftBackBottom);
+        inds.push_back(leftFrontBottom);
+
+        // right cap (x1)
+        unsigned int rightTopBack = (seg) * 2;
+        unsigned int rightTopFront = rightTopBack + 1;
+        unsigned int rightFrontBottom = frontStart + seg * 2 + 1;
+        unsigned int rightBackBottom = backStart + seg * 2 + 1;
+        inds.push_back(rightTopBack);
+        inds.push_back(rightTopFront);
+        inds.push_back(rightBackBottom);
+        inds.push_back(rightBackBottom);
+        inds.push_back(rightTopFront);
+        inds.push_back(rightFrontBottom);
+
+        Mesh mesh;
+        glGenVertexArrays(1, &mesh.vao);
+        glGenBuffers(1, &mesh.vbo);
+        glGenBuffers(1, &mesh.ebo);
+        glBindVertexArray(mesh.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
+        glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, inds.size() * sizeof(unsigned int), inds.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glBindVertexArray(0);
+        mesh.indexCount = static_cast<int>(inds.size());
+        mesh.texture = 0;
+        mesh.color = glm::vec3(0.2f, 0.5f, 0.95f);
+        return mesh;
+    }
 }
 
 WorldRepeater::WorldRepeater() {}
@@ -365,7 +605,7 @@ void WorldRepeater::Update(Registry &registry, float dt)
 
         float mapWidth = static_cast<float>(cols) * tileSize;
         float mapDepth = static_cast<float>(rows) * tileSize;
-        // store for later
+
         this->mapWidth = mapWidth;
         this->mapDepth = mapDepth;
 
@@ -376,10 +616,25 @@ void WorldRepeater::Update(Registry &registry, float dt)
         GLuint wood = Texture::Load("data/wood.jpg");
         if (wood)
             cubeMesh.texture = wood;
-        // a flat blue tile for '2' entries (no collision)
+
+        // a flat blue tile
         Mesh blueMesh = CreatePlaneMesh(tileSize, tileSize, 1.0f, 1.0f);
         blueMesh.texture = 0;
         blueMesh.color = glm::vec3(0.2f, 0.2f, 0.9f);
+
+        Mesh waterBaseMesh = CreatePlaneMesh(tileSize, tileSize, 1.0f, 1.0f);
+
+        GLuint grassTex = Texture::Load("data/grass.jpg");
+        if (grassTex)
+            waterBaseMesh.texture = grassTex;
+        else
+            waterBaseMesh.color = glm::vec3(0.15f, 0.8f, 0.25f);
+        Mesh waveMesh = CreateWaveMesh(tileSize, 28);
+        GLuint waterTex = Texture::Load("data/water.jpg");
+        if (waterTex)
+            waveMesh.texture = waterTex;
+        else
+            waveMesh.color = glm::vec3(0.2f, 0.5f, 0.95f);
 
         // create repeated segments along +Z
         copies.clear();
@@ -406,8 +661,6 @@ void WorldRepeater::Update(Registry &registry, float dt)
             created.push_back(g);
             initialPos.push_back(gt.position);
 
-            // spawn cubes for every 1 in the map
-            // use 2 for blue waves
             float offsetX = (static_cast<float>(cols - 1) * tileSize) * 0.5f;
             float offsetZ = (static_cast<float>(rows - 1) * tileSize) * 0.5f;
             for (size_t r = 0; r < rows; ++r)
@@ -423,10 +676,10 @@ void WorldRepeater::Update(Registry &registry, float dt)
                         float x = static_cast<float>(c) * tileSize - offsetX;
                         float z = static_cast<float>(r) * tileSize - offsetZ + baseZ;
 
-                        Entity e = registry.CreateEntity();
-                        Transform t;
                         if (ch == '1')
                         {
+                            Entity e = registry.CreateEntity();
+                            Transform t;
                             t.position = glm::vec3(x, tileSize * 1.0f, z);
                             t.scale = glm::vec3(tileSize, tileSize * 2.0f, tileSize);
                             registry.AddComponent<Transform>(e, t);
@@ -435,16 +688,32 @@ void WorldRepeater::Update(Registry &registry, float dt)
                             ccol.type = Collider::AABB;
                             ccol.halfExtents = glm::vec3(tileSize * 0.5f, tileSize * 1.0f, tileSize * 0.5f);
                             registry.AddComponent<Collider>(e, ccol);
+                            created.push_back(e);
+                            initialPos.push_back(t.position);
                         }
                         else
                         {
-                            t.position = glm::vec3(x, 0.01f, z);
-                            t.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-                            registry.AddComponent<Transform>(e, t);
-                            registry.AddComponent<Mesh>(e, blueMesh);
+                            Entity baseE = registry.CreateEntity();
+                            Transform bt;
+                            bt.position = glm::vec3(x, 0.01f, z);
+                            bt.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+                            registry.AddComponent<Transform>(baseE, bt);
+                            registry.AddComponent<Mesh>(baseE, waterBaseMesh);
+                            created.push_back(baseE);
+                            initialPos.push_back(bt.position);
+
+                            // wave band on top (filled down to floor). place slightly above base to avoid z-fighting
+                            Entity waveE = registry.CreateEntity();
+                            Transform vt;
+                            // place wave so its bottom sits near the floor to fill downwards
+                            float waveYOffset = 0.02f;
+                            vt.position = glm::vec3(x, waveYOffset, z);
+                            vt.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+                            registry.AddComponent<Transform>(waveE, vt);
+                            registry.AddComponent<Mesh>(waveE, waveMesh);
+                            created.push_back(waveE);
+                            initialPos.push_back(vt.position);
                         }
-                        created.push_back(e);
-                        initialPos.push_back(t.position);
                     }
                 }
             }
